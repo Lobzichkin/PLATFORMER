@@ -16,25 +16,19 @@ def fonts():
     return _fonts
 
 
-# ──────────────────────────────────────────────────────────
-#  ФОНОВЫЙ ГРАДИЕНТ + ОБЛАКА + СОЛНЦЕ
-# ──────────────────────────────────────────────────────────
 _bg_surf = None
 
 def _make_bg():
     global _bg_surf
     _bg_surf = pygame.Surface((SW, SH))
-    # вертикальный градиент
     for y in range(SH):
         t = y / SH
         r = int(C_SKY_TOP[0] + (C_SKY_BOT[0] - C_SKY_TOP[0]) * t)
         g = int(C_SKY_TOP[1] + (C_SKY_BOT[1] - C_SKY_TOP[1]) * t)
         b = int(C_SKY_TOP[2] + (C_SKY_BOT[2] - C_SKY_TOP[2]) * t)
         pygame.draw.line(_bg_surf, (r, g, b), (0, y), (SW, y))
-    # солнце
     pygame.draw.circle(_bg_surf, C_SUN, (SW - s(70), s(55)), s(28))
     pygame.draw.circle(_bg_surf, (255, 245, 150), (SW - s(70), s(55)), s(22))
-    # облака
     clouds = [(s(80), s(60)), (s(280), s(40)), (s(520), s(70)),
               (s(750), s(45)), (s(1000), s(60))]
     for cx, cy in clouds:
@@ -47,15 +41,11 @@ def _make_bg():
 def draw_background(surf, cam_offset_x=0):
     if _bg_surf is None:
         _make_bg()
-    # параллакс: фон скролится в 0.3 от скорости камеры
     bx = -int(cam_offset_x * 0.3) % SW
     surf.blit(_bg_surf, (bx,    0))
     surf.blit(_bg_surf, (bx - SW, 0))
 
 
-# ──────────────────────────────────────────────────────────
-#  TOUCH BUTTON
-# ──────────────────────────────────────────────────────────
 class TouchBtn:
     def __init__(self, rect, label, color):
         self.rect   = pygame.Rect(rect)
@@ -78,7 +68,6 @@ class TouchBtn:
     def draw(self, surf):
         col = tuple(min(255, c + 55) for c in self.color) if self.active else self.color
         r   = self.rect
-        # тень
         pygame.draw.rect(surf, C_DARK,
                          (r.x + s(3), r.y + s(3), r.w, r.h),
                          border_radius=s(8))
@@ -107,27 +96,20 @@ def draw_touch_buttons(surf):
     btn_jump.draw(surf)
 
 
-# ──────────────────────────────────────────────────────────
-#  HUD
-# ──────────────────────────────────────────────────────────
 def draw_hud(surf, lives, total_coins, level_idx):
     bar = pygame.Surface((SW, s(30)), pygame.SRCALPHA)
     bar.fill((0, 0, 0, 80))
     surf.blit(bar, (0, 0))
     txt = fonts()["sm"].render(
-        f"❤ {lives}   🪙 {total_coins}   Уровень {level_idx + 1}",
+        f"❤ {lives}   🪙 {total_coins}   Рівень {level_idx + 1}",
         True, C_WHITE)
     surf.blit(txt, (s(10), s(6)))
 
 
-# ──────────────────────────────────────────────────────────
-#  OVERLAY
-# ──────────────────────────────────────────────────────────
 def draw_overlay(surf, title, subtitle, color):
     ov = pygame.Surface((SW, SH), pygame.SRCALPHA)
     ov.fill((0, 0, 0, 170))
     surf.blit(ov, (0, 0))
-    # рамка
     box_w, box_h = s(480), s(140)
     box = pygame.Rect((SW - box_w)//2, (SH - box_h)//2, box_w, box_h)
     pygame.draw.rect(surf, C_DARK,  box, border_radius=s(16))
@@ -138,27 +120,22 @@ def draw_overlay(surf, title, subtitle, color):
     surf.blit(t2, t2.get_rect(center=(SW//2, box.centery + s(28))))
 
 
-# ──────────────────────────────────────────────────────────
-#  МЕНЮ
-# ──────────────────────────────────────────────────────────
 def menu_screen(surf, clock, fps):
     t = 0
     while True:
         t += 1
         draw_background(surf, t * 0.5)
 
-        # заголовок с тенью
         for col, off in [(C_DARK, s(4)), (C_YELLOW, 0)]:
             tx = fonts()["big"].render("ПЛАТФОРМЕР", True, col)
             surf.blit(tx, tx.get_rect(center=(SW//2 + off, SH//2 - s(60) + off)))
 
-        # подзаголовок (мигает)
         if (t // 30) % 2 == 0:
-            t2 = fonts()["med"].render("Нажми экран или ENTER", True, C_WHITE)
+            t2 = fonts()["med"].render("Натисни екран або ENTER", True, C_WHITE)
             surf.blit(t2, t2.get_rect(center=(SW//2, SH//2 + s(10))))
 
         t3 = fonts()["sm"].render(
-            "← → движение   ↑ / SPACE прыжок   ESC выход", True, C_WHITE)
+            "← → рух   ↑ / SPACE стрибок   ESC вихід", True, C_WHITE)
         surf.blit(t3, t3.get_rect(center=(SW//2, SH//2 + s(60))))
 
         pygame.display.flip()
@@ -171,12 +148,11 @@ def menu_screen(surf, clock, fps):
         clock.tick(fps)
 
 
-# ──────────────────────────────────────────────────────────
 OVERLAYS = {
-    "dead":     ("ВЫ ПОГИБЛИ",       "SPACE / tap — продолжить",    C_RED),
-    "win":      ("УРОВЕНЬ ПРОЙДЕН!", "SPACE / tap — следующий",      C_YELLOW),
-    "gameover": ("ИГРА ОКОНЧЕНА",    "SPACE / tap — начать заново",  C_GRAY),
-    "complete": ("ВЫ ПОБЕДИЛИ! 🎉",  "SPACE / tap — в меню",        C_ORANGE),
+    "dead":     ("ВИ ЗАГИНУЛИ",      "SPACE / tap — продовжити",     C_RED),
+    "win":      ("РІВЕНЬ ПРОЙДЕНО!", "SPACE / tap — далі",           C_YELLOW),
+    "gameover": ("ГРА ЗАКІНЧЕНА",    "SPACE / tap — почати знову",   C_GRAY),
+    "complete": ("ВИ ПЕРЕМОГЛИ! 🎉", "SPACE / tap — у меню",        C_ORANGE),
 }
 
 def draw_state_overlay(surf, state, extra=""):

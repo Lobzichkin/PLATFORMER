@@ -16,12 +16,10 @@ def load_level(idx):
     flags   = pygame.sprite.Group()
     player  = None
 
-    # Уровень прилегает к низу экрана; если тайлов больше чем экран — прижимаем к низу
     offset_y = max(0, SH - rows * TILE)
 
-    # Находим строку земли (последнюю непустую строку)
     ground_row = rows - 1
-    spawn_y = offset_y + ground_row * TILE - TILE  # одна строка над землёй
+    spawn_y = offset_y + ground_row * TILE - TILE
 
     for ri, row in enumerate(data):
         for ci, ch in enumerate(row):
@@ -48,27 +46,23 @@ def load_level(idx):
     return tiles, coins, enemies, flags, player, camera
 
 
-# ──────────────────────────────────────────────────────────
 class GameSession:
-    """Хранит всё состояние текущей игровой сессии."""
 
     def __init__(self):
         self.level_idx    = 0
         self.lives        = PLAYER_LIVES
         self.total_coins  = 0
-        self.state        = "play"   # play/dead/win/gameover/complete
+        self.state        = "play"
         self.collected    = 0
         self._load()
 
     def _load(self):
-        # каждый раз новая случайная карта
         new_random_level(self.level_idx)
         res = load_level(self.level_idx)
         (self.tiles, self.coins, self.enemies,
          self.flags, self.player, self.camera) = res
         self.collected = 0
 
-    # ── обновление физики и логики ──────────────────────────
     def update(self):
         if self.state != "play":
             return
@@ -81,34 +75,54 @@ class GameSession:
             en.update(self.tiles)
         self.camera.update(p.rect)
 
-        # монеты
         got = pygame.sprite.spritecollide(p, self.coins, True)
-        self.collected   += len(got)
-        self.total_coins += len(got)
+        if got:
+            self.collected   += len(got)
+            self.total_coins += len(got)
+            try:
+                from assets import sounds
+                sounds().play("coin")
+            except Exception:
+                pass
 
-        # враги
         for en in list(self.enemies):
             if p.rect.colliderect(en.rect):
-                # топнуть сверху?
                 if p.vy > 0 and p.rect.bottom < en.rect.centery + s(10):
                     en.kill()
                     p.vy = JUMP_FORCE * 0.6
+                    try:
+                        from assets import sounds
+                        sounds().play("enemy_stomp")
+                    except Exception:
+                        pass
                 else:
                     self.lives -= 1
                     self.state  = "dead"
+                    try:
+                        from assets import sounds
+                        sounds().play("hurt")
+                    except Exception:
+                        pass
                     return
 
-        # флаг
         if pygame.sprite.spritecollide(p, self.flags, False):
             self.state = "win"
+            try:
+                from assets import sounds
+                sounds().play("level_win")
+            except Exception:
+                pass
             return
 
-        # упал вниз
         if p.rect.top > SH + TILE:
             self.lives -= 1
             self.state  = "dead"
+            try:
+                from assets import sounds
+                sounds().play("hurt")
+            except Exception:
+                pass
 
-    # ── реакция на «продолжить» ─────────────────────────────
     def advance(self):
         if self.state == "dead":
             if self.lives > 0:
@@ -129,7 +143,6 @@ class GameSession:
             self._load()
             self.state = "play"
 
-    # ── рисование (без UI-слоя) ─────────────────────────────
     def draw(self, surf):
         cam = self.camera
 

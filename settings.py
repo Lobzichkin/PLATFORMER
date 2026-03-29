@@ -1,7 +1,6 @@
 import pygame
 pygame.init()
 
-# ── Экран ──────────────────────────────────────────────────
 INFO = pygame.display.Info()
 SW   = INFO.current_w
 SH   = INFO.current_h
@@ -9,7 +8,6 @@ SH   = INFO.current_h
 SCALE = SH / 480
 def s(x): return int(x * SCALE)
 
-# ── Тайл и физика ─────────────────────────────────────────
 TILE          = s(32)
 FPS           = 60
 GRAVITY       = 0.55 * SCALE
@@ -17,7 +15,6 @@ JUMP_FORCE    = -13  * SCALE
 PLAYER_SPEED  = 3.8  * SCALE
 MAX_FALL      = 18   * SCALE
 
-# ── Цвета (пиксель-палитра) ───────────────────────────────
 C_SKY_TOP    = (92,  148, 252)
 C_SKY_BOT    = (160, 210, 255)
 C_CLOUD      = (240, 248, 255)
@@ -56,7 +53,6 @@ C_YELLOW     = (255, 220,  50)
 C_RED        = (220,  40,  40)
 C_ORANGE     = (255, 140,   0)
 
-# ── Touch-кнопки ──────────────────────────────────────────
 BW  = s(88)
 BH  = s(52)
 PAD = s(14)
@@ -64,14 +60,36 @@ BTN_LEFT_RECT  = (PAD,            SH - BH - PAD, BW, BH)
 BTN_RIGHT_RECT = (PAD*2 + BW,     SH - BH - PAD, BW, BH)
 BTN_JUMP_RECT  = (SW - BW - PAD,  SH - BH - PAD, BW, BH)
 
-# ── Шрифты ───────────────────────────────────────────────
+def _find_cyrillic_font():
+    candidates = [
+        "arialmt", "arial", "calibri", "segoeui", "tahoma",
+        "verdana", "trebuchetms", "georgiaregular", "georgia",
+        "dejavusans", "ubuntumono", "freesans", "liberationsans",
+        "notosans", "droidserif",
+    ]
+    available = pygame.font.get_fonts()
+    for name in candidates:
+        if name in available:
+            return name
+    return None
+
+
 def get_fonts():
+    font_name = _find_cyrillic_font()
     return {
-        "big": pygame.font.SysFont(None, int(SH * 0.08)),
-        "med": pygame.font.SysFont(None, int(SH * 0.05)),
-        "sm":  pygame.font.SysFont(None, int(SH * 0.035)),
+        "big": pygame.font.SysFont(font_name, int(SH * 0.08), bold=True),
+        "med": pygame.font.SysFont(font_name, int(SH * 0.05)),
+        "sm":  pygame.font.SysFont(font_name, int(SH * 0.035)),
     }
 
-# ── Игровые константы ─────────────────────────────────────
+PLAYER_W = s(26)
+PLAYER_H = s(38)
+ENEMY_W  = s(28)
+ENEMY_H  = s(26)
+COIN_W   = s(14)
+COIN_H   = s(14)
+FLAG_W   = s(24)
+FLAG_H   = s(52)
+
 PLAYER_LIVES = 3
 NUM_LEVELS   = 3

@@ -1,17 +1,15 @@
 import pygame
 from settings import (
-    s, TILE, GRAVITY, JUMP_FORCE, PLAYER_SPEED, MAX_FALL, SH,
+    s, TILE, GRAVITY, JUMP_FORCE, PLAYER_SPEED, MAX_FALL,
+    PLAYER_W, PLAYER_H, ENEMY_W, ENEMY_H, COIN_W, COIN_H, FLAG_W, FLAG_H,
 )
 from draw_utils import (
     draw_ground_tile, draw_stone_tile,
     draw_coin, draw_flag, draw_player, draw_enemy,
-    COIN_W, COIN_H, FLAG_W, FLAG_H,
-    PLAYER_W, PLAYER_H, ENEMY_W, ENEMY_H,
 )
 
 
 def _collide_x(rect, tiles):
-    """Разрешить коллизии по X. Возвращает True если заблокирован."""
     blocked = False
     for t in tiles:
         if rect.colliderect(t.rect):
@@ -24,7 +22,6 @@ def _collide_x(rect, tiles):
 
 
 def _collide_y(rect, vy, tiles):
-    """Разрешить коллизии по Y. Возвращает (on_ground, hit_ceil)."""
     on_ground = False
     hit_ceil  = False
     for t in tiles:
@@ -38,19 +35,24 @@ def _collide_y(rect, vy, tiles):
     return on_ground, hit_ceil
 
 
-# ──────────────────────────────────────────────────────────
 class Tile(pygame.sprite.Sprite):
     def __init__(self, x, y, kind='ground'):
         super().__init__()
-        self.image = pygame.Surface((TILE, TILE), pygame.SRCALPHA)
-        if kind == 'ground':
-            draw_ground_tile(self.image)
+        from assets import tile_images
+        ti = tile_images()
+        img = (ti.ground if kind == 'ground' else ti.stone) if ti else None
+
+        if img:
+            self.image = img.copy()
         else:
-            draw_stone_tile(self.image)
+            self.image = pygame.Surface((TILE, TILE), pygame.SRCALPHA)
+            if kind == 'ground':
+                draw_ground_tile(self.image)
+            else:
+                draw_stone_tile(self.image)
         self.rect = self.image.get_rect(topleft=(x, y))
 
 
-# ──────────────────────────────────────────────────────────
 class Coin(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
@@ -62,7 +64,14 @@ class Coin(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(x + TILE // 2, self.base_y))
 
     def _refresh(self):
-        draw_coin(self.image, self.frame)
+        from assets import coin_images
+        ci = coin_images()
+        img = ci.get_frame(self.frame) if (ci and ci.has_any()) else None
+        if img:
+            self.image.fill((0, 0, 0, 0))
+            self.image.blit(img, (0, 0))
+        else:
+            draw_coin(self.image, self.frame)
 
     def update(self):
         import math
@@ -73,32 +82,39 @@ class Coin(pygame.sprite.Sprite):
         self.rect.centery = self.base_y + int(s(4) * math.sin(self.anim_t * 0.08))
 
 
-# ──────────────────────────────────────────────────────────
 class Flag(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
         self.frame  = 0
         self.anim_t = 0
         self.image  = pygame.Surface((FLAG_W, FLAG_H), pygame.SRCALPHA)
-        draw_flag(self.image, 0)
+        self._refresh()
         self.rect = self.image.get_rect(bottomleft=(x, y + TILE))
+
+    def _refresh(self):
+        from assets import flag_images
+        fi = flag_images()
+        img = fi.get_frame(self.frame) if (fi and fi.has_any()) else None
+        self.image.fill((0, 0, 0, 0))
+        if img:
+            self.image.blit(img, (0, 0))
+        else:
+            draw_flag(self.image, self.frame)
 
     def update(self):
         self.anim_t += 1
         if self.anim_t % 10 == 0:
             self.frame = (self.frame + 1) % 4
-            self.image.fill((0, 0, 0, 0))
-            draw_flag(self.image, self.frame)
+            self._refresh()
 
 
-# ──────────────────────────────────────────────────────────
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
         self.image      = pygame.Surface((ENEMY_W, ENEMY_H), pygame.SRCALPHA)
         self.walk_frame = 0
         self.anim_t     = 0
-        draw_enemy(self.image, 0)
+        self._refresh()
         self.rect = self.image.get_rect(bottomleft=(x, y + TILE))
         self.fx   = float(self.rect.x)
         self.fy   = float(self.rect.y)
@@ -107,8 +123,14 @@ class Enemy(pygame.sprite.Sprite):
         self.on_ground = False
 
     def _refresh(self):
+        from assets import enemy_images
+        ei = enemy_images()
+        img = ei.get_walk_frame(self.walk_frame) if (ei and ei.has_any()) else None
         self.image.fill((0, 0, 0, 0))
-        draw_enemy(self.image, self.walk_frame)
+        if img:
+            self.image.blit(img, (0, 0))
+        else:
+            draw_enemy(self.image, self.walk_frame)
 
     def update(self, tiles):
         self.anim_t += 1
@@ -118,14 +140,12 @@ class Enemy(pygame.sprite.Sprite):
 
         self.vy = min(self.vy + GRAVITY, MAX_FALL)
 
-        # X
         self.fx    += self.vx
         self.rect.x = round(self.fx)
         if _collide_x(self.rect, tiles):
             self.fx  = float(self.rect.x)
             self.vx  = -self.vx
 
-        # Y
         self.fy    += self.vy
         self.rect.y = round(self.fy)
         on_ground, hit_ceil = _collide_y(self.rect, self.vy, tiles)
@@ -134,7 +154,6 @@ class Enemy(pygame.sprite.Sprite):
             self.vy = 0.0
             self.fy = float(self.rect.y)
 
-        # разворот на краю
         if self.on_ground:
             check = pygame.Rect(
                 self.rect.left + int(self.vx),
@@ -145,7 +164,6 @@ class Enemy(pygame.sprite.Sprite):
                 self.vx = -self.vx
 
 
-# ──────────────────────────────────────────────────────────
 class Player(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
@@ -159,12 +177,32 @@ class Player(pygame.sprite.Sprite):
         self.facing      = 1
         self.walk_frame  = 0
         self.anim_t      = 0
+        self.is_jumping  = False
         self._touch_dir  = 0
         self._touch_jump = False
         self._refresh()
 
     def _refresh(self, walking=False):
-        draw_player(self.image, self.walk_frame if walking else 0, self.facing)
+        from assets import player_images
+        pi = player_images()
+        img = None
+
+        if pi and pi.has_any():
+            if self.is_jumping and pi.jump:
+                img = pi.jump
+            elif walking:
+                img = pi.get_walk_frame(self.walk_frame)
+            else:
+                img = pi.idle or pi.get_walk_frame(0)
+
+        self.image.fill((0, 0, 0, 0))
+        if img:
+            if self.facing == -1:
+                img = pygame.transform.flip(img, True, False)
+            self.image.blit(img, (0, 0))
+        else:
+            from draw_utils import draw_player
+            draw_player(self.image, self.walk_frame if walking else 0, self.facing)
 
     def update(self, tiles):
         keys = pygame.key.get_pressed()
@@ -172,7 +210,6 @@ class Player(pygame.sprite.Sprite):
         move = self._touch_dir if self._touch_dir != 0 else kb
         jump = keys[pygame.K_SPACE] or keys[pygame.K_UP] or self._touch_jump
 
-        # анимация
         if move != 0:
             self.facing  = move
             self.anim_t += 1
@@ -186,20 +223,27 @@ class Player(pygame.sprite.Sprite):
         self.vx = float(move * PLAYER_SPEED)
         if jump and self.on_ground:
             self.vy = float(JUMP_FORCE)
+            self.is_jumping = True
+            try:
+                from assets import sounds
+                sounds().play("jump")
+            except Exception:
+                pass
+
         self.vy = min(self.vy + GRAVITY, MAX_FALL)
 
-        # X
         self.fx    += self.vx
         self.rect.x = round(self.fx)
         if _collide_x(self.rect, tiles):
             self.fx = float(self.rect.x)
             self.vx = 0.0
 
-        # Y
         self.fy    += self.vy
         self.rect.y = round(self.fy)
         on_ground, hit_ceil = _collide_y(self.rect, self.vy, tiles)
         self.on_ground = on_ground
+        if on_ground:
+            self.is_jumping = False
         if on_ground or hit_ceil:
             self.vy = 0.0
             self.fy = float(self.rect.y)
